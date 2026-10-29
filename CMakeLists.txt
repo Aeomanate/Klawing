@@ -1,64 +1,19 @@
+# CMakeLists.txt
 cmake_minimum_required(VERSION 3.28)
-project(Klawing)
+project(Klawing VERSION 0.0.0)
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND WIN32)
-    # Forces the MinGW assembler to support more than 32k sections
-    add_compile_options("-Wa,-mbig-obj")
-endif()
+set(BUILD_SHARED_LIBS ON)
 
-include(FetchContent)
-set(CMAKE_FOLDER_TARGETS_SYSTEM ON)
-
-set(DEPS_LIST)
-list(APPEND DEPS_LIST SFML 3.1.0 https://github.com/SFML/SFML.git)
-list(APPEND DEPS_LIST GTest v1.18.0 https://github.com/google/googletest.git)
-list(APPEND DEPS_LIST reflect-cpp v0.26.2 https://github.com/munich-data-engineering/reflect-cpp)
-list(APPEND DEPS_LIST Protobuf v36.2 https://github.com/protocolbuffers/protobuf.git)
-list(APPEND DEPS_LIST spdlog v1.17.0 https://github.com/gabime/spdlog.git)
-list(APPEND DEPS_LIST CLI11 v2.7.2 https://github.com/CLIUtils/CLI11.git)
-list(APPEND DEPS_LIST BOOST_Asio boost-1.92.0 https://github.com/boostorg/asio.git)
-
-function(fetch_dep name tag url)
-    MESSAGE(STATUS "Fetching ${name} ${tag} from ${url}")
-    FetchContent_Declare(
-            ${name}
-            GIT_REPOSITORY ${url}
-            GIT_TAG        ${tag}
-            SYSTEM
-            EXCLUDE_FROM_ALL
-    )
-    FetchContent_MakeAvailable(${name})
-endfunction()
-
-list(LENGTH DEPS_LIST deps_length)
-math(EXPR deps_last "${deps_length} - 1")
-
-foreach(i RANGE 0 ${deps_last} 3)
-    math(EXPR i2 "${i} + 1")
-    math(EXPR i3 "${i} + 2")
-
-    list(GET DEPS_LIST ${i} dep)
-    list(GET DEPS_LIST ${i2} tag)
-    list(GET DEPS_LIST ${i3} url)
-
-    fetch_dep("${dep}" "${tag}" "${url}")
-endforeach()
+# Pull in dependency configuration and our wrapper function
+include(cmake/deps.cmake)
 
 add_executable(Klawing main.cpp)
-set_target_properties(Klawing PROPERTIES CXX_SCAN_FOR_MODULES OFF)
 
 target_compile_features(Klawing PRIVATE
         cxx_std_26
 )
 
-# Standalone Boost.Asio interface target
-add_library(boost_asio_standalone INTERFACE)
-target_include_directories(boost_asio_standalone SYSTEM INTERFACE
-        ${boost_asio_SOURCE_DIR}/include
-)
-target_compile_definitions(boost_asio_standalone INTERFACE
-        BOOST_ASIO_STANDALONE
-)
+target_link_project_dependencies(Klawing)
 
 if(MINGW)
     target_compile_options(Klawing PRIVATE
@@ -68,18 +23,31 @@ if(MINGW)
     )
 endif()
 
-target_link_libraries(Klawing
-        PRIVATE SFML::System
-        PRIVATE SFML::Window
-        PRIVATE SFML::Graphics
-        PRIVATE SFML::Network
-        PRIVATE SFML::Audio
-        PRIVATE reflectcpp
-        PRIVATE protobuf::libprotobuf
-        PRIVATE spdlog::spdlog
-        PRIVATE CLI11::CLI11
-        PRIVATE GTest::gtest
-        PRIVATE boost_asio_standalone
+if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(${PROJECT_NAME} PRIVATE stdc++exp)
+endif()
+
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Setup installation/distribution properties
+set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR}/distribute)
+
+# 1. Define your target properties
+set_target_properties(Klawing PROPERTIES
+        OUTPUT_NAME "Klawing-${PROJECT_VERSION}"
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build/Klawing-${PROJECT_VERSION}/bin
 )
 
-install(TARGETS Klawing DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/installed/build)
+# Find where your compiler lives to automatically grab its 'bin' directory
+get_filename_component(MINGW_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+# 2. Install the executable
+install(TARGETS Klawing
+        RUNTIME DESTINATION bin
+)
+
+# 3. Install the MinGW runtime DLLs at install time. install() has no DIRECTORIES or POST_EXCLUDE_REGEXES
+#    options; those belong to file(GET_RUNTIME_DEPENDENCIES), which searches MINGW_BIN_DIR for libstdc++-6.dll etc.
+#    The actual resolution logic lives in cmake/InstallRuntimeDeps.cmake to avoid embedding a quoted script.
+install(CODE "set(KLAWING_EXECUTABLE \"$<TARGET_FILE:Klawing>\")")
+install(CODE "set(KLAWING_MINGW_BIN_DIR \"${MINGW_BIN_DIR}\")")
+install(SCRIPT cmake/InstallRuntimeDeps.cmake)

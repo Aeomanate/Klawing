@@ -88,13 +88,13 @@ To ensure determinism, maintainability, and clean separation of concerns, the sy
 ```
 
 ### Architectural Subsystems
-- **Client (`src/client`):** Coordinates five distinct SFML render windows, maps desktop coordinates, captures user input for aiming and field displacement, and renders ink splatters and trajectory hints.
-- **Simulation Engine (`src/engine` / `src/simulation`):** Pure deterministic state container containing:
+- **Client (`Game/src`):** Coordinates five distinct SFML render windows, maps desktop coordinates, captures user input for aiming and field displacement, and renders ink splatters and trajectory hints.
+- **Simulation Engine (`Game/src` / `Game/src`):** Pure deterministic state container containing:
   - *Territory Canvas Grid:* Binary/pixel coverage masks calculating fractional ownership and contamination.
   - *Ricochet Solver:* Elastic reflection physics computing blot trajectories post-impact.
   - *Cone Boundary Calculator:* Real-time parametric math calculating movement cones based on field coordinates.
-- **Authoritative Server (`src/server`):** Validates all moves, verifies positional legality, executes authoritative turn resolution, and broadcasts serialized delta updates.
-- **Network Protocol (`src/proto`):** Houses `.proto` schema definitions generating strongly-typed messages for match pairing, turn intents, shot resolutions, and disconnect handling.
+- **Authoritative Server (`Game/src`):** Validates all moves, verifies positional legality, executes authoritative turn resolution, and broadcasts serialized delta updates.
+- **Network Protocol (`Game/src`):** Houses `.proto` schema definitions generating strongly-typed messages for match pairing, turn intents, shot resolutions, and disconnect handling.
 
 ---
 

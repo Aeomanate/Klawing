@@ -32,6 +32,22 @@ struct LibraryInfo {
     std::string status;
 };
 
+template <typename T>
+[[maybe_unused]] T input(std::string_view prompt) {
+    std::print(std::cout,"{}", prompt);
+    T value;
+    if constexpr (std::is_same_v<T, std::string>) {
+        std::getline(std::cin, value);
+    } else {
+        while (!(std::cin >> value)) {
+            std::cin.clear();
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::print(std::cout, "Invalid input. Try again: ");
+        }
+    }
+    return value;
+}
+
 int main(int argc, char** argv)
 {
     // 1. CLI11
@@ -74,5 +90,10 @@ int main(int argc, char** argv)
                  mode.size.x, mode.size.y, duration.asSeconds(), localhost.toString());
 
     spdlog::info("All fetched libraries successfully demonstrated.");
+
+    input<std::string>("Any questions?\n -> ");
+    std::cout << "Good, find answers. Bye!";
+    input<std::string>("");
+
     return 0;
 }
